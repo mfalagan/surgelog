@@ -1,4 +1,3 @@
-
 #ifndef BUFFER_H
 #define BUFFER_H
 
@@ -7,11 +6,13 @@
 #include <stdint.h>
 #include <ADC.h>
 
+#define DEFAULT_BUFFER_SIZE (1 << 16)
+
 // Circular buffer implementation for fast data logging
 // TODO: make the logic interrupt-safe (atomics maybe?)
 // TODO: benchmark mask-based wrapping vs mod vs condition
 class Buffer {
-    private:
+private:
     uint32_t capacity;
     uint32_t size;
     uint32_t mask;
@@ -19,11 +20,12 @@ class Buffer {
 
     uint16_t *container;
 
-    public:
+public:
+    Buffer();
     Buffer(uint32_t);
     ~Buffer();
 
-    void push(uint16_t);
+    void push(uint16_t value);
     void log(Storage *);
 };
 

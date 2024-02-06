@@ -2,6 +2,7 @@
 
 #include "Buffer.hpp"
 #include "Storage.hpp"
+#include "Sampler.hpp"
 
 // just quick and dirty tests for now
 void setup() {
@@ -12,13 +13,17 @@ void setup() {
   while (!Serial) {}
   Serial.println("Started");
 
-  Buffer *b = new Buffer(32);
-  Storage *s = new Storage();
-  b->log(s);
-  b->log(s);
-  b->log(s);
+  Buffer *buf = new Buffer();
+  Storage *stg = new Storage();
+  Sampler *smp = Sampler::get_instance(buf);
 
-  Serial.println("Finished");
+  delay(100);
+
+  smp->begin();
+  delay(1000);
+  smp->end();
+
+  buf->log(stg);
 }
 
 void loop() {}

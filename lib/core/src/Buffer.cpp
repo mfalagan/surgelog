@@ -2,6 +2,8 @@
 #include <math.h> 
 #include <string>
 
+Buffer::Buffer() : Buffer(DEFAULT_BUFFER_SIZE) {}
+
 Buffer::Buffer(uint32_t size) {
     this->size = size;
     this->capacity = 1 << (uint32_t) ceil(log2(size));
@@ -21,7 +23,7 @@ void Buffer::push(uint16_t value) {
 }
 
 void Buffer::log(Storage *storage) {
-    storage->new_log();
+    storage->new_file();
     for (uint32_t i = this->size; i > 0; -- i) {
         storage->write(std::to_string(this->container[(this->idx - i) & this->mask]) + "\n");
     }

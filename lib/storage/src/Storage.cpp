@@ -11,10 +11,11 @@ Storage::~Storage() {
     close();
 }
 
-void Storage::new_log() {
+void Storage::new_file() {
+    if (!SD.exists("data")) SD.mkdir("data");
     std::string name;
     do {
-        name = "log_" + std::to_string(this->logs_saved++) + ".txt";
+        name = "data/" + std::to_string(this->logs_saved++) + ".txt";
     } while (SD.exists(name.c_str()));
     
     this->current_log = new File(SD.open(name.c_str(), FILE_WRITE));
@@ -25,7 +26,6 @@ void Storage::new_log() {
 void Storage::write(const std::string& word) {
     if (current_log != nullptr && *current_log) {
         current_log->print(word.c_str());
-        current_log->flush();
     }
     else Serial.println("Problem writing to file");
 }
