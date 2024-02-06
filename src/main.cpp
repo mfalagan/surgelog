@@ -1,22 +1,24 @@
 #include <Arduino.h>
 
-// Define the LED pin
-#ifndef LED_BUILTIN
-#define LED_BUILTIN 13
-#endif
+#include "Buffer.hpp"
+#include "Storage.hpp"
 
+// just quick and dirty tests for now
 void setup() {
-  // Initialize the LED pin as an output
   pinMode(LED_BUILTIN, OUTPUT);
+
+  Serial.begin(9600);
+
+  while (!Serial) {}
+  Serial.println("Started");
+
+  Buffer *b = new Buffer(32);
+  Storage *s = new Storage();
+  b->log(s);
+  b->log(s);
+  b->log(s);
+
+  Serial.println("Finished");
 }
 
-void loop() {
-  // Turn the LED on (HIGH is the voltage level)
-  digitalWrite(LED_BUILTIN, HIGH);
-  // Wait for a second
-  delay(1000);
-  // Turn the LED off by making the voltage LOW
-  digitalWrite(LED_BUILTIN, LOW);
-   // Wait for a second
-  delay(1000);
-}
+void loop() {}
