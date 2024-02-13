@@ -16,7 +16,8 @@ private:
     uint32_t capacity;
     uint32_t size;
     uint32_t mask;
-    uint32_t idx;
+    uint32_t head;
+    uint32_t tail;
 
     uint16_t *container;
 
@@ -26,7 +27,12 @@ public:
     ~Buffer();
 
     void push(uint16_t value);
+    void safe_push(uint16_t value);
+    uint16_t pop();
     void log(Storage *);
+
+    bool is_full();
+    bool is_empty();
 };
 
 #endif // BUFFER_H

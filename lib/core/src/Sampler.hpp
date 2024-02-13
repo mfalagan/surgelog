@@ -5,7 +5,7 @@
 #include <IntervalTimer.h>
 #include "Buffer.hpp"
 
-#define DEFAULT_SAMPLE_INTERVAL 10
+#define DEFAULT_SAMPLE_INTERVAL 10 // 10us = 10,000 samples / second
 
 #define DEFAULT_ADC0_PIN A10
 #define DEFAULT_ADC1_PIN A14

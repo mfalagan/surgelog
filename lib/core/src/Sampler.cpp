@@ -86,6 +86,7 @@ void Sampler::init(uint32_t sample_interval) {
 void Sampler::begin() {
     if (! instance->timer->begin(Sampler::isr_start_conversion, this->sample_interval)) 
         Serial.println("Problem initiating timer");
+    // TODO: wait for the buffer to be full before exiting
 }
 
 void Sampler::end() {
