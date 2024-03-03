@@ -26,8 +26,6 @@ private:
 
         void enq(Container*);
         bool deq(Container*&);
-
-        bool is_empty();
     };
 
     QueueManager queue;
@@ -40,9 +38,6 @@ public:
 
     bool enq(uint16_t value);
     bool deq(uint16_t& value);
-
-    bool is_full();
-    bool is_empty();
 };
 
 #endif // SAFE_QUEUE_H

@@ -56,10 +56,6 @@ bool SafeQueue::QueueManager::deq(Container*& container) {
     return true;
 }
 
-bool SafeQueue::QueueManager::is_empty() {
-    return head.load() == tail.load();
-}
-
 SafeQueue::SafeQueue(uint32_t size) : queue(), pool() {
     for (uint32_t i = 0; i < size; ++ i) pool.enq(new Container());
 }
@@ -93,12 +89,4 @@ bool SafeQueue::deq(uint16_t& value) {
     } else {
         return false;
     }
-}
-
-bool SafeQueue::is_full() {
-    return pool.is_empty();
-}
-
-bool SafeQueue::is_empty() {
-    return queue.is_empty();
 }
