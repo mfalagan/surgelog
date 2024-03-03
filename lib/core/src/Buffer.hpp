@@ -21,12 +21,14 @@ private:
 public:
     Buffer();
     Buffer(uint32_t);
-    ~Buffer();
+    
+    Buffer();
 
     void push(uint16_t value);
     void safe_push(uint16_t value);
     uint16_t pop();
     void log(Storage *);
+    uint16_t& operator[] (uint32_t);
 
     bool is_full();
     bool is_empty();

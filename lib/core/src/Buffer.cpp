@@ -59,3 +59,9 @@ void Buffer::log(Storage *storage) {
     }
     storage->close();
 }
+
+// values ordered from newest to oldest in buffer
+// unchecked: can access whole container
+uint16_t& Buffer::operator[] (uint32_t idx) {
+    return container[(tail - idx) & mask];
+}
