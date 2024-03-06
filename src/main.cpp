@@ -11,22 +11,49 @@
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
 	Serial.begin(9600);
-	while (!Serial) {}
 	
-	Buffer *buf = new Buffer(1 << 18);
-	SafeQueue *q = new SafeQueue(128);
-	Sampler *adc = Sampler::get_instance(buf);
 	Storage *sd = new Storage();
+	Buffer *buf = new Buffer(1 << 15);
+	SafeQueue *q = new SafeQueue(128);
+	Sampler *adc = Sampler::get_instance(q);
 	SurgeFilter *sf = new SurgeFilter(buf, 200000 /*Samples / sec*/ / 50 /*Hz*/, 1<<4);
 
-	// Start ADC
-	// wait for buffer to fill
-	// filter until surge found
-	// wait to see aftermath
-	// stop adc
-	// log data
+	adc->init(5 /* -> 200k S/s */);
 
-	// loop
+	while (true) {
+		adc->begin();
+		{ // fill buffer
+			int count = 0;
+			uint16_t value;
+			while (count < (1 << 15)) {
+				while (!q->deq(value));
+				buf->push(value);
+				++ count;
+			}
+		}
+		{ // sample until surge
+			bool surged = false;
+			uint16_t value;
+			while (!surged) {
+				while (!q->deq(value));
+				buf->push(value);
+				surged = sf->filter(value);
+			}
+		}
+		{ // fill buffer
+			int count = 0;
+			uint16_t value;
+			while (count < (int) ((1 << 15) * 0.9)) {
+				while (!q->deq(value));
+				buf->push(value);
+				++ count;
+			}
+		}
+		adc->end();
+		// log data
+		buf->log(sd);
+		digitalWrite(LED_BUILTIN, HIGH);
+	}
 }
 
 void loop() {}

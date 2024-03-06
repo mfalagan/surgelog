@@ -3,8 +3,8 @@
 Sampler *Sampler::instance = nullptr;
 
 // TODO: maybe implement finer-grained control of config registers' options through setters
-Sampler::Sampler(Buffer *buffer) {
-    this->buffer = buffer;
+Sampler::Sampler(SafeQueue *queue) {
+    this->queue = queue;
     this->sample_interval = DEFAULT_SAMPLE_INTERVAL;
 
     this->adc0_pin = DEFAULT_ADC0_PIN;
@@ -53,8 +53,8 @@ Sampler::Sampler(Buffer *buffer) {
     this->adc->adc1->wait_for_cal();
 }
 
-Sampler* Sampler::get_instance(Buffer* buffer) {
-    if (instance == nullptr) instance = new Sampler(buffer);
+Sampler* Sampler::get_instance(SafeQueue *queue) {
+    if (instance == nullptr) instance = new Sampler(queue);
     return instance;
 }
 
@@ -76,7 +76,7 @@ void Sampler::isr_store_conversion() {
     // TODO: benchmark impact of this line:
     while (! instance->adc->adc1->isComplete()) {}
 
-    instance->buffer->push(instance->adc->adc0->readSingle() - instance->adc->adc1->readSingle());
+    instance->queue->enq(instance->adc->adc0->readSingle() - instance->adc->adc1->readSingle());
 }
 
 void Sampler::init(uint32_t sample_interval) {
@@ -86,7 +86,7 @@ void Sampler::init(uint32_t sample_interval) {
 void Sampler::begin() {
     if (! instance->timer->begin(Sampler::isr_start_conversion, this->sample_interval)) 
         Serial.println("Problem initiating timer");
-    // TODO: wait for the buffer to be full before exiting
+    // TODO: wait for the queue to be full before exiting
 }
 
 void Sampler::end() {

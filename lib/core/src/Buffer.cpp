@@ -15,6 +15,8 @@ Buffer::Buffer(uint32_t capacity) {
     container = (uint16_t *) malloc(container_size * sizeof(uint16_t));
 
     this->mask = container_size - 1;
+
+    if (container == nullptr) Serial.println("Buffer initialization failed");
 }
 
 Buffer::~Buffer() {

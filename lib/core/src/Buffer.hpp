@@ -22,7 +22,7 @@ public:
     Buffer();
     Buffer(uint32_t);
     
-    Buffer();
+    ~Buffer();
 
     void push(uint16_t value);
     void safe_push(uint16_t value);

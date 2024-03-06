@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "SafeQueue.hpp"
 
 SafeQueue::Container::Container() : next(nullptr) {}
@@ -42,13 +43,10 @@ bool SafeQueue::QueueManager::deq(Container*& container) {
     while (!dequeued) {
         dummy = head.load(std::memory_order_acquire);
         next = dummy->next.load(std::memory_order_acquire);
+        if (next == nullptr) return false;
         value = next->value;
 
-        if (next == nullptr) {
-            return false;
-        } else {
-            dequeued = head.compare_exchange_weak(dummy, next, std::memory_order_release, std::memory_order_relaxed);
-        }
+        dequeued = head.compare_exchange_weak(dummy, next, std::memory_order_release, std::memory_order_relaxed);
     }
 
     dummy->value = value;

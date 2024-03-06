@@ -3,7 +3,7 @@
 
 #include <ADC.h>
 #include <IntervalTimer.h>
-#include "Buffer.hpp"
+#include "SafeQueue.hpp"
 
 #define DEFAULT_SAMPLE_INTERVAL 10 // 10us = 10,000 samples / second
 
@@ -17,7 +17,7 @@ private:
     static Sampler *instance;
 
     ADC *adc;
-    Buffer *buffer;
+    SafeQueue *queue;
     IntervalTimer *timer;
     uint32_t sample_interval; // microseconds
     uint8_t adc0_pin;
@@ -27,11 +27,11 @@ private:
     static void isr_start_conversion();
     static void isr_store_conversion();
 
-    Sampler(Buffer*);
+    Sampler(SafeQueue*);
 
 public:
 
-    static Sampler* get_instance(Buffer* buffer);
+    static Sampler* get_instance(SafeQueue *buffer);
     Sampler(const Sampler&) = delete;
     ~Sampler();
 
