@@ -12,7 +12,7 @@ Buffer::Buffer(uint32_t capacity) {
 
     // Allocate next power of 2, save mask:
     uint32_t container_size = 1 << (uint32_t) ceil(log2(capacity));
-    container = (uint16_t *) malloc(container_size * sizeof(uint16_t));
+    container = (int16_t *) malloc(container_size * sizeof(int16_t));
 
     this->mask = container_size - 1;
 
@@ -23,21 +23,21 @@ Buffer::~Buffer() {
     free(container);
 }
 
-void Buffer::safe_push(uint16_t value) {
+void Buffer::safe_push(int16_t value) {
     if (! is_full()) {
         ++ size;
         container[(++ tail) & mask] = value;
     } else Serial.println("Problem pushing: buffer full");
 }
 
-void Buffer::push(uint16_t value) {
+void Buffer::push(int16_t value) {
     if (is_full()) ++ head;
     else ++ size;
 
     container[(++ tail) & mask] = value;
 }
 
-uint16_t Buffer::pop() {
+int16_t Buffer::pop() {
     if (! is_empty()) {
         -- size;
         return container[(++ head) & mask];
@@ -64,6 +64,6 @@ void Buffer::log(Storage *storage) {
 
 // values ordered from newest to oldest in buffer
 // unchecked: can access whole container
-uint16_t& Buffer::operator[] (uint32_t idx) {
+int16_t& Buffer::operator[] (uint32_t idx) {
     return container[(tail - idx) & mask];
 }

@@ -5,15 +5,15 @@
 
 class SurgeFilter {
 private:
-    uint16_t threshold;
+    int16_t threshold;
     uint32_t offset;
     Buffer *buffer;
 
 public:
-    SurgeFilter(Buffer *buffer, uint32_t offset, uint16_t threshold);
+    SurgeFilter(Buffer *buffer, uint32_t offset, int16_t threshold);
     ~SurgeFilter();
 
-    bool filter(uint16_t value);
+    bool filter(int16_t value);
 };
 
 #endif

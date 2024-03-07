@@ -24,7 +24,7 @@ void setup() {
 		adc->begin();
 		{ // fill buffer
 			int count = 0;
-			uint16_t value;
+			int16_t value;
 			while (count < (1 << 15)) {
 				while (!q->deq(value));
 				buf->push(value);
@@ -33,7 +33,7 @@ void setup() {
 		}
 		{ // sample until surge
 			bool surged = false;
-			uint16_t value;
+			int16_t value;
 			while (!surged) {
 				while (!q->deq(value));
 				buf->push(value);
@@ -42,7 +42,7 @@ void setup() {
 		}
 		{ // fill buffer
 			int count = 0;
-			uint16_t value;
+			int16_t value;
 			while (count < (int) ((1 << 15) * 0.9)) {
 				while (!q->deq(value));
 				buf->push(value);

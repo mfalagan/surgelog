@@ -37,7 +37,7 @@ void SafeQueue::QueueManager::enq(Container *container) {
 bool SafeQueue::QueueManager::deq(Container*& container) {
     Container* dummy;
     Container* next;
-    uint16_t value;
+    int16_t value;
 
     bool dequeued = false;
     while (!dequeued) {
@@ -64,7 +64,7 @@ SafeQueue::~SafeQueue() {
     while (queue.deq(c)) delete c;
 }
 
-bool SafeQueue::enq(uint16_t value) {
+bool SafeQueue::enq(int16_t value) {
 
     Container *c = nullptr;
 
@@ -77,7 +77,7 @@ bool SafeQueue::enq(uint16_t value) {
     }
 }
 
-bool SafeQueue::deq(uint16_t& value) {
+bool SafeQueue::deq(int16_t& value) {
     Container *c = nullptr;
 
     if (queue.deq(c)) {
