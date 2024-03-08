@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "Buffer.hpp"
 #include <math.h> 
 

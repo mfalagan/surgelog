@@ -12,7 +12,7 @@ bool SurgeFilter::filter(int16_t value) {
     int16_t diff = value - (*buffer)[offset];
 
     int16_t mask = value >> 15;     // mask is signed, so rsh is arithmetic
-    diff = (value ^ mask) - mask;   // fast absolute value
+    diff = (diff ^ mask) - mask;    // fast absolute value
 
     return diff > threshold;
 }
