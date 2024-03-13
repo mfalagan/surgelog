@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "SafeQueue.hpp"
 
 SafeQueue::Container::Container() : next(nullptr) {}

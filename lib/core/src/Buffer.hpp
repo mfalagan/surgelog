@@ -4,10 +4,7 @@
 #include "Storage.hpp"
 #include <stdint.h>
 
-#define DEFAULT_BUFFER_SIZE (1 << 16)
-
-// Circular buffer implementation for fast data logging
-// TODO: benchmark mask-based wrapping vs mod vs condition
+// fast circular FIFO buffer implementation
 class Buffer {
 private:
     uint32_t capacity;
@@ -19,15 +16,18 @@ private:
     int16_t *container;
 
 public:
-    Buffer();
-    Buffer(uint32_t);
-    
+    Buffer(uint32_t capacity = 1<<15);
     ~Buffer();
 
+    // inserts element into buffer, overwrites oldest if full
     void push(int16_t value);
-    void safe_push(int16_t value);
-    int16_t pop();
+    // retrieves and removes oldest element in buffer
+    bool pop(int16_t& value);
+
+    // logs buffer content into a Storage object
     void log(Storage *);
+    // retrieves ith-from-newest element in the buffer
+    // unchecked access for performance, use with caution
     int16_t& operator[] (uint32_t);
 
     bool is_full();

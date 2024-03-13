@@ -10,10 +10,13 @@
 #define DEFAULT_ADC0_PIN A10
 #define DEFAULT_ADC1_PIN A14
 
+// manages data acquisition, using the ADC and an Interval timer
+// uses interrupts for timing. singleton pattern due to ISRs.
+// TODO: delete init() method
+// TODO: method for calculating max sampling rate
 class Sampler {
 private:
 
-    // Singleton, as isrs must use one instance, which cannot be passed
     static Sampler *instance;
 
     ADC *adc;
@@ -23,7 +26,7 @@ private:
     uint8_t adc0_pin;
     uint8_t adc1_pin;
 
-    // very dangerous to call these methods without instantiating Sampler, protect them!
+    // may only be called by their respective interrupt, use with caution
     static void isr_start_conversion();
     static void isr_store_conversion();
 
@@ -35,8 +38,12 @@ public:
     Sampler(const Sampler&) = delete;
     ~Sampler();
 
+    // sets sampling interval
+    // this method is a vestige of a previous implementation, class still needs refactoring
     void init(uint32_t sample_interval);
+    // starts the timer that triggers periodic smpling
     void begin();
+    // stops the timer
     void end();
 };
 

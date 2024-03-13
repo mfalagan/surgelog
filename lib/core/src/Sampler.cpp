@@ -2,7 +2,6 @@
 
 Sampler *Sampler::instance = nullptr;
 
-// TODO: maybe implement finer-grained control of config registers' options through setters
 Sampler::Sampler(SafeQueue *queue) {
     this->queue = queue;
     this->sample_interval = DEFAULT_SAMPLE_INTERVAL;
@@ -28,6 +27,13 @@ Sampler::Sampler(SafeQueue *queue) {
     // ADICLK  01  input clock = IPG clock /2
     uint32_t CFG = 0b00000001100011001;
 
+    // clear bits 0 through 16
+    ADC1_CFG &= ~ ((1 << 17) - 1);
+    ADC2_CFG &= ~ ((1 << 17) - 1);
+    // set bits from CFG
+    ADC1_CFG |= CFG;
+    ADC2_CFG |= CFG;
+
     // ADCO    0   continuous conversions disabled
     // AVGE    1   hardware averaging enabled
     // ACFE    0   compare function disabled
@@ -37,13 +43,10 @@ Sampler::Sampler(SafeQueue *queue) {
     // ADACKEN 0   asynchronous clock disabled
     uint32_t GC  = 0b0100000;
 
-    ADC1_CFG &= ~ ((1 << 17) - 1);  // clear bits 0 through 16
-    ADC2_CFG &= ~ ((1 << 17) - 1);
-    ADC1_CFG |= CFG;                // set bits from CFG
-    ADC2_CFG |= CFG;
-
+    // clear bits 0 through 23
     ADC1_GC &= ~ ((1 << 24) - 1);
     ADC2_GC &= ~ ((1 << 24) - 1);
+    // set bits from GC
     ADC1_GC |= GC;
     ADC2_GC |= GC;
 
@@ -86,7 +89,6 @@ void Sampler::init(uint32_t sample_interval) {
 void Sampler::begin() {
     if (! instance->timer->begin(Sampler::isr_start_conversion, this->sample_interval)) 
         Serial.println("Problem initiating timer");
-    // TODO: wait for the queue to be full before exiting
 }
 
 void Sampler::end() {

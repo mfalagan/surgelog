@@ -1,8 +1,5 @@
-#include <Arduino.h>
 #include "Buffer.hpp"
 #include <math.h> 
-
-Buffer::Buffer() : Buffer(DEFAULT_BUFFER_SIZE) {}
 
 Buffer::Buffer(uint32_t capacity) {
     this->capacity = capacity;
@@ -11,24 +8,20 @@ Buffer::Buffer(uint32_t capacity) {
     tail = 0;
     head = 0;
 
-    // Allocate next power of 2, save mask:
+    // Allocate next power of 2
     uint32_t container_size = 1 << (uint32_t) ceil(log2(capacity));
     container = (int16_t *) malloc(container_size * sizeof(int16_t));
 
+    // Save wrapping mask
     this->mask = container_size - 1;
 
+    // Malloc may have failed
+    // TODO: implement error handling
     if (container == nullptr) Serial.println("Buffer initialization failed");
 }
 
 Buffer::~Buffer() {
     free(container);
-}
-
-void Buffer::safe_push(int16_t value) {
-    if (! is_full()) {
-        ++ size;
-        container[(++ tail) & mask] = value;
-    } else Serial.println("Problem pushing: buffer full");
 }
 
 void Buffer::push(int16_t value) {
@@ -38,13 +31,12 @@ void Buffer::push(int16_t value) {
     container[(++ tail) & mask] = value;
 }
 
-int16_t Buffer::pop() {
+bool Buffer::pop(int16_t& value) {
     if (! is_empty()) {
         -- size;
-        return container[(++ head) & mask];
-    } else Serial.println("Problem popping: buffer empty");
-
-    return 0;
+        value = container[(++ head) & mask];
+        return true;
+    } else return false;
 }
 
 inline bool Buffer::is_full() {
@@ -57,14 +49,13 @@ inline bool Buffer::is_empty() {
 
 void Buffer::log(Storage *storage) {
     storage->new_file();
-    for (uint32_t i = size; i > 0; -- i) {
-        storage->write(std::to_string(container[(tail - i) & mask]) + "\n");
+    int16_t value;
+    while(this->pop(value)) {
+        storage->write(std::to_string(value) + "\n");
     }
     storage->close();
 }
 
-// values ordered from newest to oldest in buffer
-// unchecked: can access whole container
 int16_t& Buffer::operator[] (uint32_t idx) {
     return container[(tail - idx) & mask];
 }

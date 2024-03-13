@@ -4,10 +4,12 @@
 #include <stdint.h>
 #include <atomic>
 
-// TODO: make generic for reusability, benchmark to ensure no performance hit
+// preallocated thread-safe FIFO queue implementation
+// TODO: make generic for reusability
+// TODO: benchmark (more), test (more)
 class SafeQueue {
 private:
-
+    // container object for storing elements
     struct Container {
         int16_t value;
         std::atomic<Container*> next;
@@ -15,6 +17,8 @@ private:
         Container();
     };
 
+    // Michael & Scott queue variation
+    // containers are enqueued & dequeued whole
     class QueueManager {
     private:
         std::atomic<Container*> head;
@@ -36,7 +40,11 @@ public:
     SafeQueue(uint32_t size);
     ~SafeQueue();
 
+    // inserts element into queue
+    // if full, returns false
     bool enq(int16_t value);
+    // retrieves and removes element from queue
+    // if empty, returns false, leaving value as-is
     bool deq(int16_t& value);
 };
 

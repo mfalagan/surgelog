@@ -6,8 +6,6 @@
 #include "Storage.hpp"
 #include "SurgeFilter.hpp"
 
-
-// just quick and dirty tests for now
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
 	Serial.begin(9600);
@@ -16,7 +14,7 @@ void setup() {
 	Buffer *buf = new Buffer(1 << 15);
 	SafeQueue *q = new SafeQueue(128);
 	Sampler *adc = Sampler::get_instance(q);
-	SurgeFilter *sf = new SurgeFilter(buf, 200000 /*Samples / sec*/ / 50 /*Hz*/, 1<<4);
+	SurgeFilter *sf = new SurgeFilter(buf, 200000 /*Samples / sec*/ / 50 /*Hz*/, 0);
 
 	adc->init(5 /* -> 200k S/s */);
 
@@ -29,6 +27,7 @@ void setup() {
 				while (!q->deq(value));
 				buf->push(value);
 				++ count;
+				sf->filter(value);
 			}
 		}
 		{ // sample until surge
