@@ -1,22 +1,58 @@
 #include <Arduino.h>
 
-// Define the LED pin
-#ifndef LED_BUILTIN
-#define LED_BUILTIN 13
-#endif
+#include "buffer.h"
+#include "SafeQueue.hpp"
+#include "Sampler.hpp"
+#include "Storage.hpp"
+#include "SurgeFilter.hpp"
 
 void setup() {
-  // Initialize the LED pin as an output
-  pinMode(LED_BUILTIN, OUTPUT);
+	pinMode(LED_BUILTIN, OUTPUT);
+	Serial.begin(9600);
+	
+	Storage *sd = new Storage();
+	Buffer *buf = new Buffer(1 << 15);
+	SafeQueue *q = new SafeQueue(128);
+	Sampler *adc = Sampler::get_instance(q);
+	SurgeFilter *sf = new SurgeFilter(buf, 200000 /*Samples / sec*/ / 50 /*Hz*/, 0);
+
+	adc->init(5 /* -> 200k S/s */);
+
+	while (true) {
+		adc->begin();
+		{ // fill buffer
+			int count = 0;
+			int16_t value;
+			while (count < (1 << 15)) {
+				while (!q->deq(value));
+				buf->push(value);
+				++ count;
+				sf->filter(value);
+			}
+		}
+		{ // sample until surge
+			bool surged = false;
+			int16_t value;
+			while (!surged) {
+				while (!q->deq(value));
+				buf->push(value);
+				surged = sf->filter(value);
+			}
+		}
+		{ // fill buffer
+			int count = 0;
+			int16_t value;
+			while (count < (int) ((1 << 15) * 0.9)) {
+				while (!q->deq(value));
+				buf->push(value);
+				++ count;
+			}
+		}
+		adc->end();
+		// log data
+		buf->log(sd);
+		digitalWrite(LED_BUILTIN, HIGH);
+	}
 }
 
-void loop() {
-  // Turn the LED on (HIGH is the voltage level)
-  digitalWrite(LED_BUILTIN, HIGH);
-  // Wait for a second
-  delay(1000);
-  // Turn the LED off by making the voltage LOW
-  digitalWrite(LED_BUILTIN, LOW);
-   // Wait for a second
-  delay(1000);
-}
+void loop() {}
