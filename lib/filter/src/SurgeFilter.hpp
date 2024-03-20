@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cmath>
 
-// TODO: a LOT of testing in production env
+// TODO: test bayesian hypothesis updating
 class SurgeFilter {
 private:
     Buffer *buffer;

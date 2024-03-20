@@ -22,13 +22,11 @@ bool SurgeFilter::filter(int16_t value) {
     stdev = sqrt(((1 - slow_alpha) * (stdev * stdev)) + (slow_alpha * (value - mean) * (value - old_mean)));
 
     // Compute Z-score if standard deviation is not zero
-    float diff = mean - value;
-    diff = diff < 0 ? -diff : diff;
-    float z_score = stdev > 0 ? diff / stdev : 0.0f;
+    float z_score = stdev > 0 ? (mean - value) / stdev : 0.0f;
 
     // Update the trend of Z-scores using the normalization factor
     ztrend = fast_alpha * normalization * z_score + (1 - fast_alpha) * ztrend;
 
     // Determine if the current point is an anomaly based on the Z-score
-    return ztrend > threshold;
+    return abs(ztrend) > threshold;
 }
