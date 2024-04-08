@@ -2,7 +2,7 @@
 
 Sampler *Sampler::instance = nullptr;
 
-Sampler::Sampler(SafeQueue *queue) {
+Sampler::Sampler(SafeQueue<int16_t> *queue) {
     this->queue = queue;
     this->sample_interval = DEFAULT_SAMPLE_INTERVAL;
 
@@ -56,7 +56,7 @@ Sampler::Sampler(SafeQueue *queue) {
     this->adc->adc1->wait_for_cal();
 }
 
-Sampler* Sampler::get_instance(SafeQueue *queue) {
+Sampler* Sampler::get_instance(SafeQueue<int16_t> *queue) {
     if (instance == nullptr) instance = new Sampler(queue);
     return instance;
 }

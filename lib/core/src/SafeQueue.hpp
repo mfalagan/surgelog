@@ -5,13 +5,15 @@
 #include <atomic>
 
 // preallocated thread-safe FIFO queue implementation
-// TODO: make generic for reusability
-// TODO: benchmark (more), test (more)
+// TODO: benchmark, test
+// TODO: handle allocation failure errors
+// TODO: implement dynamic size
+template <typename T>
 class SafeQueue {
 private:
     // container object for storing elements
     struct Container {
-        int16_t value;
+        T value;
         std::atomic<Container*> next;
 
         Container();
@@ -42,10 +44,10 @@ public:
 
     // inserts element into queue
     // if full, returns false
-    bool enq(int16_t value);
+    bool enq(T value);
     // retrieves and removes element from queue
     // if empty, returns false, leaving value as-is
-    bool deq(int16_t& value);
+    bool deq(T& value);
 };
 
 #endif // SAFE_QUEUE_H

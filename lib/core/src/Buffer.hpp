@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 // fast circular FIFO buffer implementation
+// TODO: try static allocation of container
 class Buffer {
 private:
     uint32_t capacity;

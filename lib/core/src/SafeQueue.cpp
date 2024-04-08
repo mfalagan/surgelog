@@ -1,19 +1,24 @@
 #include "SafeQueue.hpp"
+template class SafeQueue<int16_t>;
 
-SafeQueue::Container::Container() : next(nullptr) {}
+template <typename T>
+SafeQueue<T>::Container::Container() : next(nullptr) {}
 
-SafeQueue::QueueManager::QueueManager() : head(nullptr), tail(nullptr) {
+template <typename T>
+SafeQueue<T>::QueueManager::QueueManager() : head(nullptr), tail(nullptr) {
     head = new Container();
     tail = head.load();
 }
 
-SafeQueue::QueueManager::~QueueManager() {
+template <typename T>
+SafeQueue<T>::QueueManager::~QueueManager() {
     delete head;
 
     head = tail = nullptr;
 }
 
-void SafeQueue::QueueManager::enq(Container *container) {
+template <typename T>
+void SafeQueue<T>::QueueManager::enq(Container *container) {
         Container *old_tail;
         Container *tail_next;
 
@@ -33,7 +38,8 @@ void SafeQueue::QueueManager::enq(Container *container) {
         tail.compare_exchange_weak(old_tail, container, std::memory_order_release, std::memory_order_relaxed);
 }
 
-bool SafeQueue::QueueManager::deq(Container*& container) {
+template <typename T>
+bool SafeQueue<T>::QueueManager::deq(Container*& container) {
     Container* dummy;
     Container* next;
     int16_t value;
@@ -53,17 +59,23 @@ bool SafeQueue::QueueManager::deq(Container*& container) {
     return true;
 }
 
-SafeQueue::SafeQueue(uint32_t size) : queue(), pool() {
-    for (uint32_t i = 0; i < size; ++ i) pool.enq(new Container());
+template <typename T>
+SafeQueue<T>::SafeQueue(uint32_t size) : queue(), pool() {
+    Container *containers = new Container[size];
+    for (uint32_t i = 0; i < size; i++) {
+        pool.enq(&containers[i]);
+    }
 }
 
-SafeQueue::~SafeQueue() {
+template <typename T>
+SafeQueue<T>::~SafeQueue() {
     Container *c = nullptr;
     while (pool.deq(c)) delete c;
     while (queue.deq(c)) delete c;
 }
 
-bool SafeQueue::enq(int16_t value) {
+template <typename T>
+bool SafeQueue<T>::enq(T value) {
 
     Container *c = nullptr;
 
@@ -76,7 +88,8 @@ bool SafeQueue::enq(int16_t value) {
     }
 }
 
-bool SafeQueue::deq(int16_t& value) {
+template <typename T>
+bool SafeQueue<T>::deq(T& value) {
     Container *c = nullptr;
 
     if (queue.deq(c)) {

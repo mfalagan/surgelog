@@ -12,7 +12,7 @@ void setup() {
 	
 	Storage *sd = new Storage();
 	Buffer *buf = new Buffer(1 << 15);
-	SafeQueue *q = new SafeQueue(128);
+	SafeQueue<int16_t> *q = new SafeQueue<int16_t>(128);
 	Sampler *adc = Sampler::get_instance(q);
 	SurgeFilter *sf = new SurgeFilter(buf, 200000 /*Samples / sec*/ / 50 /*Hz*/, 10);
 

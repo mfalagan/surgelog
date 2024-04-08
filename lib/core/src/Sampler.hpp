@@ -20,7 +20,7 @@ private:
     static Sampler *instance;
 
     ADC *adc;
-    SafeQueue *queue;
+    SafeQueue<int16_t> *queue;
     IntervalTimer *timer;
     uint32_t sample_interval; // microseconds
     uint8_t adc0_pin;
@@ -30,11 +30,11 @@ private:
     static void isr_start_conversion();
     static void isr_store_conversion();
 
-    Sampler(SafeQueue*);
+    Sampler(SafeQueue<int16_t>*);
 
 public:
 
-    static Sampler* get_instance(SafeQueue *buffer);
+    static Sampler* get_instance(SafeQueue<int16_t>*);
     Sampler(const Sampler&) = delete;
     ~Sampler();
 
