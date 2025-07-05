@@ -1,32 +1,28 @@
 // surgelog, mfalagan, 2025
 
 #include <Arduino.h>
+#include <atomic>
 
 volatile bool has_crashed = false;
-volatile uint32_t write_counter = 0;
-volatile uint32_t extra_blocks = 5;
+volatile uint16_t last_val = 0xFFFF;
+std::atomic<size_t> sample_count = 0;
 
 void irq_tmr3(void)
 {
-	if ((IMXRT_TMR3.CH[0].CSCTRL & TMR_CSCTRL_TCF1) != 0) // ACQ signal
-	{
-		IMXRT_TMR3.CH[0].CSCTRL &= ~TMR_CSCTRL_TCF1; // ACK
-		++ write_counter;
-	}
-	if ((IMXRT_TMR3.CH[2].SCTRL & TMR_SCTRL_TCF) != 0) // Crash
-	{
-		IMXRT_TMR3.CH[2].SCTRL &= ~TMR_SCTRL_TCF; // ACK
-		has_crashed = true;
-	}
-
-	static int countdown = extra_blocks;
-	if (countdown)
-	{
-		IMXRT_TMR3.CH[2].COMP1 += 1; // release one
-		-- countdown;
-	}
+	IMXRT_TMR3.CH[2].SCTRL &= ~TMR_SCTRL_TCF; // ACK
+	has_crashed = true;
 
 	asm volatile("dsb"); // ensure ACK has reached peripheral
+}
+
+void irq_etc(void)
+{
+	ADC_ETC_DONE0_1_IRQ |= 0b1; // ACK - why the inconsistent IRQ clearing? Hardware magic I guess...
+
+	sample_count.fetch_add(1);
+	last_val = ADC_ETC_TRIG0_RESULT_1_0 & ((1<<16) - 1);
+
+	asm volatile("dsb");
 }
 
 extern "C" void xbar_connect(unsigned int input, unsigned int output); // shoulda put it in a header
@@ -62,9 +58,11 @@ int main(void)
 
 // -- TMR --
 
-	// We'll need a whole module for this. TMR3 and TMR4 expose a pin to XBAR1 directly, without
-	// going through XBAR2 or XBAR3 first. TMR4 is used all over the Teensy libraries, so, to avoid
-	// any possible collisions, I'll go with TMR3.
+	/**
+	 * We'll need a whole module for this. TMR3 and TMR4 expose a pin to XBAR1 directly, without
+	 * going through XBAR2 or XBAR3 first. TMR4 is used all over the Teensy libraries, so, to avoid
+	 * any possible collisions, I'll go with TMR3.
+	 */
 
 	IMXRT_TMR3.ENBL |= TMR3_ENBL; // Enable module (all four channels)
 
@@ -101,7 +99,7 @@ int main(void)
 		// TMR_CSCTRL_TCI |			// No reinitialize on second trigger
 		// TMR_CSCTRL_UP |			// Irrelevant - only for quadrature mode
 		// TMR_CSCTRL_TCF2EN |		// No interrupt on compare 2
-		TMR_CSCTRL_TCF1EN |			// Interrupt on compare 1 TODO: just for testing
+		// TMR_CSCTRL_TCF1EN |		// No interrupt on compare 1
 		TMR_CSCTRL_CL2(0b00) |		// Never load new COMP2
 		TMR_CSCTRL_CL1(0b00);		// Never load new COMP1
 
@@ -263,35 +261,134 @@ int main(void)
 	// And attach out ISR vector to it
 	attachInterruptVector(IRQ_QTIMER3, irq_tmr3);
 
+// -- ADC --
+
+	/**
+	 * With this all done, we can route the ACQ signal through the XBAR and into the ETC, to have it
+	 * generate ADC triggers for us. For this purpose, we must first configure the ADC.
+	 * 
+	 * The configuration I am going to apply is the result of some quick testing and benchmarking, 
+	 * they may vary later on, when the pipeline is fully working, but are good as a placeholder.
+	 * The intent is to have both ADCs working together through the ETC's SYNC mode, but, for
+	 * testing purposes, I am going to set up only one of them. I'll address this later on.
+	 */
+
+	/**
+	 * The first step is to wire the IOMUX to connect the ADC to an external pin. Through the magic
+	 * of having already wired a test setup and not being bothered to change it, I know ADC1 must be
+	 * connected to pin A10/24, and ADC2 to pin A14/38. 
+	 */
+
+	// Pin 24 corresponds to pad AD_B0_12. We can set it to Input Mode
+	IOMUXC_SW_MUX_CTL_PAD_GPIO_AD_B0_12 |= ((uint32_t)(1<<4)); // SION 1 (why is it not in imxrt.h?)
+
+	// One other important thing, as per specified in the manual, the keeper needs to be disabled.
+	IOMUXC_SW_PAD_CTL_PAD_GPIO_AD_B0_12 &= ~ IOMUXC_PAD_PKE;
+
+	// We can now configure the ADC itself
+	
+	IMXRT_ADC1.CFG = 0 |
+		ADC_CFG_OVWREN |		// Output register overwrite enabled
+		ADC_CFG_AVGS(0b00) |	// 4 sample averaging
+		// ADC_CFG_ADTRG |		// Software trigger selected (to enable calibration, this will be changed)
+		ADC_CFG_REFSEL(0b00) |	// VREFH/VREFL voltage reference. It is the only one allowed lol
+		// ADC_CFG_ADHSC |		// High speed mode disabled. I believe it only applies to ADACK
+		ADC_CFG_ADSTS(0b11) |	// Sample period = 9 / 25 ticks (9 with the current ADLSMP)
+		// ADC_CFG_ADLPC |		// Low power configuration disabled
+		ADC_CFG_ADIV(0b00) |	// No clock divider
+		ADC_CFG_ADLSMP |		// Long sample mode (25 ticks per sample, with the current ADSTS)
+		ADC_CFG_MODE(0b10) |	// 12-bit conversion mode
+		ADC_CFG_ADICLK(0b00);	// IPG clock as source
+
+	IMXRT_ADC1.GC = 0 |
+		// ADC_GC_CAL |		// this bit begins the calibration process, we don't want that yet
+		// ADC_GC_ADCO |	// Continuous conversion disabled
+		ADC_GC_AVGE ;		// Hardware averaging enabled
+		// ADC_GC_ACFE |	// Compare function disabled
+		// ADC_GC_ACFGT |	// Compare function greater than mode, does not apply
+		// ADC_GC_ACREN |	// Compare function range mode, does not apply
+		// ADC_GC_DMAEN |	// DMA requests disabled.
+		// ADC_GC_ADACKEN;	// Asynchronous clock (ADACK) disabled
+
+	// Finally we can calibrate
+	IMXRT_ADC1.GC |= ADC_GC_CAL; // send calibration signal
+	while ((IMXRT_ADC1.HS & ADC_HS_COCO0) == 0) /* wait */; // wait for calibration
+
+	// With calibration done, we can set the ADC to Hardware Trigger mode
+	IMXRT_ADC1.CFG |= ADC_CFG_ADTRG;
+
+	// In testing I am only going to use trigger 0
+	IMXRT_ADC1.HC0 = 0 |
+		// ADC_HC_AIEN |		// Converison interrupt disabled
+		ADC_HC_ADCH(0b10000);	// External channel selection from ETC
+	
+// -- ETC --
+
+	// We may as well start by resetting the registers
+	IMXRT_ADC_ETC.CTRL |= ADC_ETC_CTRL_SOFTRST;
+	IMXRT_ADC_ETC.CTRL &= ~ ADC_ETC_CTRL_SOFTRST;
+
+	IMXRT_ADC_ETC.CTRL = 0 |
+		// ADC_ETC_CTRL_SOFTRST |			// Reset bit
+		// ADC_ETC_CTRL_TSC_BYPASS |		// Irrelevant - I won't use TSC
+		// ADC_ETC_CTRL_DMA_MODE_SEL|		// No DMA for the moment
+		ADC_ETC_CTRL_PRE_DIVIDER(0b0) |		// No pre-divider
+		ADC_ETC_CTRL_EXT1_TRIG_PRIORITY(0b0) |// Irrelevant - I won't use TSC
+		// ADC_ETC_CTRL_EXT1_TRIG_ENABLE |	// TSC1 trigger disabled
+		ADC_ETC_CTRL_EXT0_TRIG_PRIORITY(0b0) |// Irrelevant - I won't use TSC
+		// ADC_ETC_CTRL_EXT0_TRIG_ENABLE |	// TSC2 trigger disabled
+		ADC_ETC_CTRL_TRIG_ENABLE(0b1);		// Enable XBAR trigger 1
+	
+	IMXRT_ADC_ETC.TRIG[0].CTRL = 0 |
+		// ADC_ETC_TRIG_CTRL_SYNC_MODE |		// No sync, ADCs are controlled separately
+		ADC_ETC_TRIG_CTRL_TRIG_PRIORITY(0b111) |// Highest priority to trigger 0
+		ADC_ETC_TRIG_CTRL_TRIG_CHAIN(0b0) ;		// Trigger chan length 1
+		// ADC_ETC_TRIG_CTRL_TRIG_MODE |		// Hardware trigger
+
+	IMXRT_ADC_ETC.TRIG[0].CHAIN_1_0 = 0 |
+		ADC_ETC_TRIG_CHAIN_IE0(0b1) |	// Interrupt on Done0 (for testing)
+		ADC_ETC_TRIG_CHAIN_B2B0 |		// Back-to-back enabled. Maybe later I'll set up chains with delays.
+		ADC_ETC_TRIG_CHAIN_HWTS0(0b1) |	// ADC TRIG00 selected
+		ADC_ETC_TRIG_CHAIN_CSEL0(0b1);	// ADC channel 2 selected
+	
+	IMXRT_ADC_ETC.DMA_CTRL = ADC_ETC_DMA_CTRL_TRIQ_ENABLE(0b0); // DMA disabled for now
+
+	// Once again, we connect QTIMER3_TIMER0 (ACQ signal) to ADC_ETC_TRIG00 (ETC trigger)
+	xbar_connect(XBARA1_IN_QTIMER3_TIMER0, XBARA1_OUT_ADC_ETC_TRIG00);
+
+	// We enable the IRQ
+	NVIC_ENABLE_IRQ(IRQ_ADC_ETC0);
+
+	// And attach its vector
+	attachInterruptVector(IRQ_ADC_ETC0, irq_etc);
+
 	// Now we test!
 	{
 		IMXRT_TMR3.CH[2].SCTRL |= TMR_SCTRL_VAL | TMR_SCTRL_FORCE; // Start ACQ
 
-		while (! has_crashed) /* wait */;
-		
-		Serial.printf("Total writes:\t%d\nBlocks written:\t%d / %d\nOverrun:\t%d / %d\n",
-			write_counter,
-			write_counter / BLOCK_SIZE, QUEUE_SIZE + extra_blocks,
-			write_counter % BLOCK_SIZE, BLOCK_SIZE);
+		size_t block = 0;;
+		while (! has_crashed)
+		{
+			size_t temp = sample_count.load();
+			while (temp >= BLOCK_SIZE)
+			{
+				if (sample_count.compare_exchange_weak(temp, temp % BLOCK_SIZE))
+				{
+					uint16_t increment = temp / BLOCK_SIZE;
+					IMXRT_TMR3.CH[2].COMP1 += increment;
+					block += increment;
+				}
+			}
+
+			if (last_val == 0xFFFF) Serial.printf("No data (block #%d, sample #%d)\n", block, sample_count.load());
+			else Serial.printf("Last sample: %d (block #%d, sample #%d)\n", last_val, block, sample_count.load());
+
+			delay(100);
+		}
+
+		Serial.printf("Crash -- should not happen!\n");
 
 		// Seems OK
-
-		/**
-		 * Actually, I started poking around to measure how much a crash takes to propagate from
-		 * CH2, through the XBAR and into CH1, and the CNTRs hold... unexpected values. There seems
-		 * to be a phase error (of one) somewhere I can't find. Anyhow, a phase error does not
-		 * change the actual function of the timer, and this delay should be deterministic (all of
-		 * the invloved peripherals run on IPG) and much shorter than the ACQ period (I expect
-		 * around ~6 ticks). I'd say it is safe to assume this setup works and no ACQ pulses slip
-		 * through.
-		 * 
-		 * The unexpected result can be seen in the following log:
-		 */
-
-		// Serial.printf("Pointers at ACQ halt:\n\tBlock %d/%d\n\tSample %d/%d\n\tCycle %d/%d\n",
-        //     IMXRT_TMR3.CH[2].CNTR, QUEUE_SIZE + extra_blocks,
-        //     IMXRT_TMR3.CH[1].CNTR, BLOCK_SIZE,
-        //     IMXRT_TMR3.CH[0].CNTR, F_BUS_ACTUAL / SAMPLING_FREQ);
 	}
 	
 	return 0;
